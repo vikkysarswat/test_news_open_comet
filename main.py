@@ -148,12 +148,19 @@ async def get_news(
         paginated = all_articles[start:end]
 
         return {
-            "articles": paginated,
-            "total": len(all_articles),
-            "page": page,
-            "per_page": limit,
-            "total_pages": (len(all_articles) + limit - 1) // limit
+    "type": "carousel",
+    "title": "Latest News 🗞️",
+    "items": [
+        {
+            "title": a["title"],
+            "subtitle": f"{a['category'].title()} — {a['author']}",
+            "description": a["summary"],
+            "image_url": a["image_url"],
+            "link": {"url": a["url"], "label": "Read full article →"}
         }
+        for a in paginated
+    ]
+}
     except Exception as e:
         logger.error(f"Error fetching news: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch news")
