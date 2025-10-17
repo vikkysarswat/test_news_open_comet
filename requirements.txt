@@ -1,0 +1,50 @@
+# News Portal FastMCP Server - Requirements
+
+# Core FastAPI and FastMCP dependencies
+fastapi>=0.104.0
+fastmcp>=0.4.0
+uvicorn[standard]>=0.23.0
+
+# HTTP client for news APIs
+httpx>=0.25.0
+aiohttp>=3.8.0
+
+# Data validation and serialization
+pydantic>=2.0.0
+
+# Date/time handling
+python-dateutil>=2.8.0
+
+# Configuration management
+python-dotenv>=1.0.0
+
+# Logging and monitoring
+structlog>=23.0.0
+
+# Optional: Database support for production
+sqlalchemy>=2.0.0  # For database integration
+alembic>=1.12.0    # For database migrations
+aiopg>=1.4.0       # For PostgreSQL async support
+
+# Optional: Caching
+redis>=4.5.0       # For Redis caching
+aioredis>=2.0.0    # For async Redis operations
+
+# Optional: Authentication and security
+passlib[bcrypt]>=1.7.0  # For password hashing
+python-jose[cryptography]>=3.3.0  # For JWT tokens
+python-multipart>=0.0.6  # For form data
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Static file serving
+aiofiles>=23.0.0
+
+# News API integrations (optional)
+newsapi-python>=0.2.6  # NewsAPI.org client
+feedparser>=6.0.0      # RSS feed parsing
