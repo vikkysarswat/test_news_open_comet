@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 News Portal FastMCP Server
-A complete FastAPI server powered by FastMCP for news portal integration with ChatGPT
+A complete FastAPI server powered by FastMCP for news portal integration with ChatGPT.
+Combines clean structure from Code 2 and rich documentation and robustness from Code 1.
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +19,7 @@ from fastmcp import FastMCP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Mock news data for demonstration
+# --- Mock News Data (for demo) ---
 MOCK_NEWS_DATA = {
     "technology": [
         {
@@ -80,7 +81,7 @@ MOCK_NEWS_DATA = {
     ]
 }
 
-# Data models
+# --- Data Models ---
 class NewsArticle(BaseModel):
     id: str
     title: str
@@ -104,7 +105,7 @@ class CategoryResponse(BaseModel):
     categories: List[str]
     total: int
 
-# Initialize FastAPI app
+# --- Initialize FastAPI and FastMCP ---
 app = FastAPI(
     title="News Portal MCP Server",
     description="FastMCP server for news portal with ChatGPT integration",
@@ -114,9 +115,10 @@ app = FastAPI(
 # Mount static files for assets
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
-# Initialize FastMCP
-mcp = FastMCP("News Portal Server")
+# Initialize FastMCP instance from FastAPI
+mcp = FastMCP.from_fastapi(app=app)
 
+# --- MCP Tools ---
 @mcp.tool()
 async def get_news(
     category: Optional[str] = None,
@@ -124,39 +126,29 @@ async def get_news(
     page: int = 1
 ) -> Dict[str, Any]:
     """
-    Retrieve news articles with optional category filtering.
-    
-    Args:
-        category: News category to filter by (technology, business, sports)
-        limit: Maximum number of articles to return (default: 10)
-        page: Page number for pagination (default: 1)
-    
-    Returns:
-        Dictionary containing articles, pagination info, and metadata
+    Retrieve news articles with optional category filtering and pagination.
     """
     try:
         all_articles = []
-        
         if category:
-            if category.lower() in MOCK_NEWS_DATA:
-                all_articles = MOCK_NEWS_DATA[category.lower()]
+            cat = category.lower()
+            if cat in MOCK_NEWS_DATA:
+                all_articles = MOCK_NEWS_DATA[cat]
             else:
                 raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
         else:
-            # Get all articles from all categories
-            for cat_articles in MOCK_NEWS_DATA.values():
-                all_articles.extend(cat_articles)
-        
-        # Sort by published date (newest first)
+            for articles in MOCK_NEWS_DATA.values():
+                all_articles.extend(articles)
+
+        # Sort by date (newest first)
         all_articles.sort(key=lambda x: x['published_at'], reverse=True)
-        
-        # Apply pagination
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
-        paginated_articles = all_articles[start_idx:end_idx]
-        
+
+        start = (page - 1) * limit
+        end = start + limit
+        paginated = all_articles[start:end]
+
         return {
-            "articles": paginated_articles,
+            "articles": paginated,
             "total": len(all_articles),
             "page": page,
             "per_page": limit,
@@ -169,21 +161,13 @@ async def get_news(
 @mcp.tool()
 async def get_article(article_id: str) -> Dict[str, Any]:
     """
-    Retrieve a specific news article by its ID.
-    
-    Args:
-        article_id: Unique identifier of the article
-    
-    Returns:
-        Dictionary containing the full article details
+    Retrieve a specific news article by ID.
     """
     try:
-        # Search for article across all categories
         for category, articles in MOCK_NEWS_DATA.items():
             for article in articles:
-                if article['id'] == article_id:
+                if article["id"] == article_id:
                     return article
-        
         raise HTTPException(status_code=404, detail=f"Article with ID '{article_id}' not found")
     except HTTPException:
         raise
@@ -195,16 +179,10 @@ async def get_article(article_id: str) -> Dict[str, Any]:
 async def list_categories() -> Dict[str, Any]:
     """
     List all available news categories.
-    
-    Returns:
-        Dictionary containing list of categories and count
     """
     try:
         categories = list(MOCK_NEWS_DATA.keys())
-        return {
-            "categories": categories,
-            "total": len(categories)
-        }
+        return {"categories": categories, "total": len(categories)}
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
         raise HTTPException(status_code=500, detail="Failed to list categories")
@@ -217,45 +195,34 @@ async def search_news(
 ) -> Dict[str, Any]:
     """
     Search for news articles based on a query string.
-    
-    Args:
-        query: Search query string
-        category: Optional category to limit search to
-        limit: Maximum number of results to return
-    
-    Returns:
-        Dictionary containing matching articles and metadata
     """
     try:
         all_articles = []
-        
         if category:
-            if category.lower() in MOCK_NEWS_DATA:
-                all_articles = MOCK_NEWS_DATA[category.lower()]
+            cat = category.lower()
+            if cat in MOCK_NEWS_DATA:
+                all_articles = MOCK_NEWS_DATA[cat]
             else:
                 return {"articles": [], "total": 0, "query": query}
         else:
-            for cat_articles in MOCK_NEWS_DATA.values():
-                all_articles.extend(cat_articles)
-        
-        # Simple search implementation (case-insensitive)
+            for group in MOCK_NEWS_DATA.values():
+                all_articles.extend(group)
+
         query_lower = query.lower()
-        matching_articles = []
-        
-        for article in all_articles:
-            if (query_lower in article['title'].lower() or 
-                query_lower in article['summary'].lower() or 
-                query_lower in article['content'].lower() or
-                any(query_lower in tag.lower() for tag in article['tags'])):
-                matching_articles.append(article)
-        
-        # Sort by published date and limit results
-        matching_articles.sort(key=lambda x: x['published_at'], reverse=True)
-        limited_results = matching_articles[:limit]
-        
+        matched = [
+            a for a in all_articles
+            if (query_lower in a["title"].lower() or
+                query_lower in a["summary"].lower() or
+                query_lower in a["content"].lower() or
+                any(query_lower in tag.lower() for tag in a["tags"]))
+        ]
+
+        matched.sort(key=lambda x: x["published_at"], reverse=True)
+        limited = matched[:limit]
+
         return {
-            "articles": limited_results,
-            "total": len(matching_articles),
+            "articles": limited,
+            "total": len(matched),
             "query": query,
             "category": category
         }
@@ -263,77 +230,49 @@ async def search_news(
         logger.error(f"Error searching news: {e}")
         raise HTTPException(status_code=500, detail="Failed to search news")
 
-# FastAPI endpoints for direct API access
+# --- REST API Endpoints ---
 @app.get("/api/news")
-async def api_get_news(
-    category: Optional[str] = None,
-    limit: int = 10,
-    page: int = 1
-):
-    """REST API endpoint for getting news"""
+async def api_get_news(category: Optional[str] = None, limit: int = 10, page: int = 1):
     result = await get_news(category, limit, page)
     return JSONResponse(content=result)
 
 @app.get("/api/article/{article_id}")
 async def api_get_article(article_id: str):
-    """REST API endpoint for getting a specific article"""
     result = await get_article(article_id)
     return JSONResponse(content=result)
 
 @app.get("/api/categories")
 async def api_list_categories():
-    """REST API endpoint for listing categories"""
     result = await list_categories()
     return JSONResponse(content=result)
 
 @app.get("/api/search")
-async def api_search_news(
-    q: str,
-    category: Optional[str] = None,
-    limit: int = 10
-):
-    """REST API endpoint for searching news"""
+async def api_search_news(q: str, category: Optional[str] = None, limit: int = 10):
     result = await search_news(q, category, limit)
     return JSONResponse(content=result)
 
-# Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Simple health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-# MCP server info endpoint
 @app.get("/mcp/info")
 async def mcp_info():
-    """Get MCP server information"""
+    """Get MCP server information."""
     return {
         "name": "News Portal MCP Server",
         "version": "1.0.0",
         "description": "FastMCP server for news portal with ChatGPT integration",
         "tools": [
-            {
-                "name": "get_news",
-                "description": "Retrieve news articles with optional category filtering"
-            },
-            {
-                "name": "get_article", 
-                "description": "Retrieve a specific news article by its ID"
-            },
-            {
-                "name": "list_categories",
-                "description": "List all available news categories"
-            },
-            {
-                "name": "search_news",
-                "description": "Search for news articles based on a query string"
-            }
+            {"name": "get_news", "description": "Retrieve news articles with optional category filtering"},
+            {"name": "get_article", "description": "Retrieve a specific news article by its ID"},
+            {"name": "list_categories", "description": "List all available news categories"},
+            {"name": "search_news", "description": "Search for news articles based on a query string"}
         ],
         "assets_url": "/assets"
     }
 
-# Include the FastMCP router
-app.include_router(mcp.router)
-
+# --- Entry Point ---
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # Run combined FastAPI + MCP server
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
