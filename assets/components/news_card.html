@@ -1,0 +1,256 @@
+<!-- News Card Component -->
+<!-- This component displays individual news articles in a card format -->
+<div class="news-card" data-article-id="{{article.id}}">
+  <div class="news-card-header">
+    <img src="{{article.image_url}}" alt="{{article.title}}" class="news-card-image" loading="lazy" />
+    <div class="news-card-category">
+      <span class="category-tag category-{{article.category}}">{{article.category}}</span>
+      <span class="news-source">{{article.source}}</span>
+    </div>
+  </div>
+  
+  <div class="news-card-content">
+    <h3 class="news-card-title">
+      <a href="{{article.url}}" target="_blank" rel="noopener noreferrer">
+        {{article.title}}
+      </a>
+    </h3>
+    
+    <p class="news-card-summary">{{article.summary}}</p>
+    
+    <div class="news-card-meta">
+      <span class="news-author">By {{article.author}}</span>
+      <time class="news-date" datetime="{{article.published_at}}">{{article.published_at | humanize}}</time>
+    </div>
+    
+    <div class="news-tags">
+      {{#each article.tags}}
+      <span class="tag">{{this}}</span>
+      {{/each}}
+    </div>
+    
+    <div class="news-card-actions">
+      <button class="read-more-btn" onclick="showFullArticle('{{article.id}}')">Read More</button>
+      <button class="share-btn" onclick="shareArticle('{{article.id}}', '{{article.title}}', '{{article.url}}')">Share</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.news-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e1e5e9;
+}
+
+.news-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.news-card-header {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.news-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.news-card:hover .news-card-image {
+  transform: scale(1.05);
+}
+
+.news-card-category {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.category-tag {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.category-technology { background: #007acc; }
+.category-business { background: #28a745; }
+.category-sports { background: #dc3545; }
+.category-health { background: #17a2b8; }
+.category-entertainment { background: #6f42c1; }
+
+.news-source {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.news-card-content {
+  padding: 20px;
+}
+
+.news-card-title {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #1a202c;
+}
+
+.news-card-title a {
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.news-card-title a:hover {
+  color: #007acc;
+}
+
+.news-card-summary {
+  color: #4a5568;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #718096;
+}
+
+.news-author {
+  font-weight: 600;
+}
+
+.news-date {
+  font-style: italic;
+}
+
+.news-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.tag {
+  background: #f7fafc;
+  color: #4a5568;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.news-card-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.read-more-btn, .share-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.read-more-btn {
+  background: #007acc;
+  color: white;
+}
+
+.read-more-btn:hover {
+  background: #005999;
+  transform: translateY(-1px);
+}
+
+.share-btn {
+  background: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+}
+
+.share-btn:hover {
+  background: #edf2f7;
+  transform: translateY(-1px);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .news-card-content {
+    padding: 16px;
+  }
+  
+  .news-card-title {
+    font-size: 16px;
+  }
+  
+  .news-card-actions {
+    justify-content: center;
+  }
+}
+</style>
+
+<script>
+// JavaScript for interactive functionality
+function showFullArticle(articleId) {
+  // This function would be implemented to show the full article
+  // For now, it's a placeholder for ChatGPT integration
+  if (window.parent && window.parent.postMessage) {
+    window.parent.postMessage({
+      type: 'GET_ARTICLE',
+      articleId: articleId
+    }, '*');
+  }
+}
+
+function shareArticle(articleId, title, url) {
+  if (navigator.share) {
+    navigator.share({
+      title: title,
+      url: url
+    }).catch(console.error);
+  } else {
+    // Fallback for browsers that don't support Web Share API
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Article link copied to clipboard!');
+    }).catch(() => {
+      // Fallback to window.prompt
+      window.prompt('Copy article link:', url);
+    });
+  }
+}
+</script>
