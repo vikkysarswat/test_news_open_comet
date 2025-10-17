@@ -198,6 +198,7 @@ async def list_categories() -> Dict[str, Any]:
 async def search_news(
     query: str,
     category: Optional[str] = None,
+    output_schema="rich",
     limit: int = 10
 ) -> Dict[str, Any]:
     """
