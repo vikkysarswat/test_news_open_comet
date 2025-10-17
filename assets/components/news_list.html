@@ -1,0 +1,185 @@
+<!-- News List Component -->
+<!-- Displays a list/grid of news items with pagination and filters -->
+<div class="news-list-container">
+  <div class="news-list-header">
+    <h2>Latest News</h2>
+    <div class="news-filters">
+      <select id="categoryFilter" onchange="onCategoryChange(this.value)">
+        <option value="">All</option>
+        <option value="technology">Technology</option>
+        <option value="business">Business</option>
+        <option value="sports">Sports</option>
+      </select>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search news..." onkeydown="if(event.key==='Enter'){onSearch()}"/>
+        <button onclick="onSearch()">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="newsList" class="news-list"></div>
+
+  <div class="pagination" id="pagination">
+    <button id="prevPageBtn" onclick="prevPage()" disabled>Previous</button>
+    <span id="pageInfo">Page 1</span>
+    <button id="nextPageBtn" onclick="nextPage()">Next</button>
+  </div>
+</div>
+
+<style>
+.news-list-container {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.news-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.news-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-box {
+  display: flex;
+  gap: 6px;
+}
+
+.news-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .news-list { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .news-list { grid-template-columns: 1fr; }
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
+
+<script>
+let currentCategory = '';
+let currentQuery = '';
+let currentPage = 1;
+let perPage = 6;
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Network error');
+  return res.json();
+}
+
+async function loadNews() {
+  const url = new URL('/api/news', window.location.origin);
+  if (currentCategory) url.searchParams.set('category', currentCategory);
+  url.searchParams.set('limit', perPage);
+  url.searchParams.set('page', currentPage);
+
+  const data = await fetchJSON(url.toString());
+  renderNews(data.articles || []);
+  updatePagination(data.page, data.total, data.per_page);
+}
+
+async function searchNews() {
+  const url = new URL('/api/search', window.location.origin);
+  url.searchParams.set('q', currentQuery);
+  if (currentCategory) url.searchParams.set('category', currentCategory);
+  url.searchParams.set('limit', perPage);
+
+  const data = await fetchJSON(url.toString());
+  renderNews(data.articles || []);
+  updatePagination(1, data.total, perPage);
+}
+
+function renderNews(articles) {
+  const container = document.getElementById('newsList');
+  container.innerHTML = '';
+  
+  if (!articles.length) {
+    container.innerHTML = '<p>No news found.</p>';
+    return;
+  }
+  
+  articles.forEach(article => {
+    const card = document.createElement('div');
+    card.innerHTML = `
+      <div class="news-card">
+        <img src="${article.image_url}" alt="${article.title}" style="width:100%;height:180px;object-fit:cover;border-radius:8px;"/>
+        <h3 style="margin:8px 0;">${article.title}</h3>
+        <p style="color:#4a5568;">${article.summary}</p>
+        <div style="display:flex;justify-content:space-between;color:#718096;font-size:12px;">
+          <span>${article.author}</span>
+          <span>${new Date(article.published_at).toLocaleDateString()}</span>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <a href="${article.url}" target="_blank" style="color:#007acc;text-decoration:none;font-weight:600;">Read More →</a>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function updatePagination(page, total, perPage) {
+  currentPage = page;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  document.getElementById('pageInfo').textContent = `Page ${page} of ${totalPages}`;
+  document.getElementById('prevPageBtn').disabled = page <= 1;
+  document.getElementById('nextPageBtn').disabled = page >= totalPages;
+}
+
+function onCategoryChange(cat) {
+  currentCategory = cat;
+  currentPage = 1;
+  if (currentQuery) return searchNews();
+  loadNews();
+}
+
+function onSearch() {
+  const input = document.getElementById('searchInput');
+  currentQuery = input.value.trim();
+  currentPage = 1;
+  if (currentQuery) return searchNews();
+  loadNews();
+}
+
+function nextPage() {
+  currentPage += 1;
+  if (currentQuery) return searchNews();
+  loadNews();
+}
+
+function prevPage() {
+  if (currentPage > 1) currentPage -= 1;
+  if (currentQuery) return searchNews();
+  loadNews();
+}
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+  loadNews();
+});
+</script>
