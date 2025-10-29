@@ -93,10 +93,23 @@ class NewsWidget:
 
 
 def _load_widget_html(component_name: str) -> str:
+    """
+    Load widget HTML from the assets directory.
+    Supports both:
+      - assets/<name>.html
+      - assets/components/<name>.html
+    """
     html_path = ASSETS_DIR / f"{component_name}.html"
     if html_path.exists():
         return html_path.read_text(encoding="utf8")
-    raise FileNotFoundError(f"Missing widget HTML at {html_path}")
+
+    # 🔧 Also check the components subfolder
+    alt_path = ASSETS_DIR / "components" / f"{component_name}.html"
+    if alt_path.exists():
+        return alt_path.read_text(encoding="utf8")
+
+    raise FileNotFoundError(f"Missing widget HTML at {html_path} or {alt_path}")
+
 
 
 widgets: List[NewsWidget] = [
