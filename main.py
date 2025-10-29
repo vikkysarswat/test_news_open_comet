@@ -232,7 +232,14 @@ async def _call_tool(req: types.CallToolRequest) -> types.ServerResult:
 
     return types.ServerResult(
         types.CallToolResult(
-            content=[types.TextContent(type="text", text="Rendered the latest news carousel.")],
+            content=[
+                types.TextResourceContents(
+                    uri=TEMPLATE_URI,
+                    mimeType=MIME_TYPE,
+                    text=HTML_TEMPLATE,
+                    title="Latest News 🗞️",
+                )
+            ],
             structuredContent=structured,
             _meta=meta,
         )
