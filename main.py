@@ -226,7 +226,7 @@ async def _call_tool(req: types.CallToolRequest) -> types.ServerResult:
 
     widget = _embedded_widget()
     meta = {
-        "openai.com/widget": widget.model_dump(mode="json"),
+        "openai/widget": widget.model_dump(mode="json"),
         **_meta(),
     }
 
