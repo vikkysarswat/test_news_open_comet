@@ -256,7 +256,11 @@ mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool
 # FastMCP App
 # --------------------------------------------------------------------
 app = mcp.streamable_http_app()
-
+from fastapi import FastAPI
+if isinstance(app, FastAPI):
+    @app.get("/")
+    async def root():
+        return {"status": "ok", "message": "MCP server running"}
 try:
     from starlette.middleware.cors import CORSMiddleware
     app.add_middleware(
@@ -270,5 +274,6 @@ except Exception:
     pass
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0")
+    import uvicorn, os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
