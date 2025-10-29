@@ -225,9 +225,12 @@ async def _call_tool(req: types.CallToolRequest) -> types.ServerResult:
     }
 
     widget = _embedded_widget()
+    # Note: ensure widget.model_dump returns the correct dict
     meta = {
         "openai/widget": widget.model_dump(mode="json"),
-        **_meta(),
+        "openai/resultCanProduceWidget": True,
+        "openai/widgetAccessible": True,
+        "openai/outputTemplate": TEMPLATE_URI,
     }
 
     return types.ServerResult(
@@ -237,13 +240,14 @@ async def _call_tool(req: types.CallToolRequest) -> types.ServerResult:
                     uri=TEMPLATE_URI,
                     mimeType=MIME_TYPE,
                     text=HTML_TEMPLATE,
-                    title="Latest News 🗞️",
+                    title=TOOL_TITLE,
                 )
             ],
             structuredContent=structured,
             _meta=meta,
         )
     )
+
 
 # Register the handler
 mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool
