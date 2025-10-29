@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-News Portal MCP Server (Widget-based)
-------------------------------------
-An MCP server modeled after the official "Pizzaz" demo.
-It exposes widget-backed tools that render a news carousel in ChatGPT.
+News MCP Server
+---------------
+A fully working MCP server exposing a `get_news` tool that returns
+rich structured content (carousel format) compatible with ChatGPT widgets.
 """
 
 from __future__ import annotations
 import logging
-from copy import deepcopy
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from copy import deepcopy
+from pathlib import Path
+
+from pydantic import BaseModel, Field, ConfigDict, ValidationError
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # --------------------------------------------------------------------
 # Logging
@@ -31,7 +32,7 @@ MOCK_NEWS_DATA = {
         {
             "id": "tech-1",
             "title": "AI Breakthrough in Natural Language Processing",
-            "summary": "Researchers achieve new milestone in AI language understanding with transformer models.",
+            "summary": "Researchers achieve new milestone in AI understanding with transformers.",
             "author": "Dr. Sarah Chen",
             "published_at": "2025-01-15T10:30:00Z",
             "category": "technology",
@@ -40,7 +41,7 @@ MOCK_NEWS_DATA = {
         },
         {
             "id": "tech-2",
-            "title": "New Quantum Computing Milestone Reached",
+            "title": "Quantum Computing Reaches New Milestone",
             "summary": "IBM announces breakthrough in quantum error correction.",
             "author": "Michael Rodriguez",
             "published_at": "2025-01-14T14:45:00Z",
@@ -53,7 +54,7 @@ MOCK_NEWS_DATA = {
         {
             "id": "biz-1",
             "title": "Global Markets Rally on Economic Optimism",
-            "summary": "Stock markets worldwide see significant gains amid positive economic indicators.",
+            "summary": "Stocks worldwide rise amid positive indicators.",
             "author": "Jennifer Walsh",
             "published_at": "2025-01-15T08:15:00Z",
             "category": "business",
@@ -64,8 +65,8 @@ MOCK_NEWS_DATA = {
     "sports": [
         {
             "id": "sports-1",
-            "title": "Championship Finals Set for This Weekend",
-            "summary": "Two powerhouse teams prepare for the ultimate showdown in the championship finals.",
+            "title": "Championship Finals This Weekend",
+            "summary": "Two powerhouse teams prepare for the ultimate showdown.",
             "author": "David Kim",
             "published_at": "2025-01-15T16:20:00Z",
             "category": "sports",
@@ -76,63 +77,20 @@ MOCK_NEWS_DATA = {
 }
 
 # --------------------------------------------------------------------
-# Widget Definition
+# MCP Setup
 # --------------------------------------------------------------------
+mcp = FastMCP(name="open_ai_app", stateless_http=True)
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 MIME_TYPE = "text/html+skybridge"
-
-@dataclass(frozen=True)
-class NewsWidget:
-    identifier: str
-    title: str
-    template_uri: str
-    html: str
-    response_text: str
-    invoking: str
-    invoked: str
-
-
-def _load_widget_html(component_name: str) -> str:
-    """
-    Load widget HTML from the assets directory.
-    Supports both:
-      - assets/<name>.html
-      - assets/components/<name>.html
-    """
-    html_path = ASSETS_DIR / f"{component_name}.html"
-    if html_path.exists():
-        return html_path.read_text(encoding="utf8")
-
-    # 🔧 Also check the components subfolder
-    alt_path = ASSETS_DIR / "components" / f"{component_name}.html"
-    if alt_path.exists():
-        return alt_path.read_text(encoding="utf8")
-
-    raise FileNotFoundError(f"Missing widget HTML at {html_path} or {alt_path}")
-
-
-
-widgets: List[NewsWidget] = [
-    NewsWidget(
-        identifier="news-carousel",
-        title="Show Latest News Carousel",
-        template_uri="ui://widget/news-carousel.html",
-        html=_load_widget_html("news-carousel"),
-        response_text="Rendered the latest news carousel.",
-        invoking="Fetching latest news articles",
-        invoked="Displayed news carousel",
-    )
-]
-
-WIDGETS_BY_ID = {w.identifier: w for w in widgets}
-WIDGETS_BY_URI = {w.template_uri: w for w in widgets}
 
 # --------------------------------------------------------------------
 # Input Schema
 # --------------------------------------------------------------------
 class NewsInput(BaseModel):
-    """Schema for selecting a category."""
-    category: Optional[str] = Field(None, description="News category to display (e.g. technology, business, sports).")
+    """Schema for selecting a news category."""
+    category: Optional[str] = Field(
+        None, description="News category (technology, business, or sports)."
+    )
     model_config = ConfigDict(extra="forbid")
 
 TOOL_INPUT_SCHEMA: Dict[str, Any] = {
@@ -140,7 +98,7 @@ TOOL_INPUT_SCHEMA: Dict[str, Any] = {
     "properties": {
         "category": {
             "type": "string",
-            "description": "News category to display (e.g. technology, business, sports)."
+            "description": "News category (technology, business, or sports)."
         }
     },
     "required": [],
@@ -148,108 +106,84 @@ TOOL_INPUT_SCHEMA: Dict[str, Any] = {
 }
 
 # --------------------------------------------------------------------
-# MCP Setup
+# Tool Definition
 # --------------------------------------------------------------------
-mcp = FastMCP(name="news-portal-mcp", stateless_http=True)
+TOOL_NAME = "get_news"
+TOOL_TITLE = "Get Latest News"
+TOOL_DESCRIPTION = "Returns a carousel of the latest news articles."
 
-def _tool_meta(widget: NewsWidget) -> Dict[str, Any]:
+HTML_TEMPLATE = """
+<div class="news-carousel">
+  <h2>Latest News 🗞️</h2>
+  <div class="carousel">
+    {{#each items}}
+      <div class="card">
+        <img src="{{image_url}}" alt="{{title}}">
+        <h3>{{title}}</h3>
+        <p>{{subtitle}}</p>
+        <p>{{description}}</p>
+        <a href="{{link.url}}" target="_blank">{{link.label}}</a>
+      </div>
+    {{/each}}
+  </div>
+</div>
+"""
+
+TEMPLATE_URI = "ui://widget/get_news.html"
+
+def _meta() -> Dict[str, Any]:
     return {
-        "openai/outputTemplate": widget.template_uri,
-        "openai/toolInvocation/invoking": widget.invoking,
-        "openai/toolInvocation/invoked": widget.invoked,
+        "openai/outputTemplate": TEMPLATE_URI,
+        "openai/toolInvocation/invoking": "Fetching latest news",
+        "openai/toolInvocation/invoked": "Displayed news carousel",
         "openai/widgetAccessible": True,
         "openai/resultCanProduceWidget": True,
     }
 
-def _embedded_widget_resource(widget: NewsWidget) -> types.EmbeddedResource:
+def _embedded_widget() -> types.EmbeddedResource:
     return types.EmbeddedResource(
         type="resource",
         resource=types.TextResourceContents(
-            uri=widget.template_uri,
+            uri=TEMPLATE_URI,
             mimeType=MIME_TYPE,
-            text=widget.html,
-            title=widget.title,
+            text=HTML_TEMPLATE,
+            title=TOOL_TITLE,
         ),
     )
 
 # --------------------------------------------------------------------
-# MCP Handlers
+# Tool Listing
 # --------------------------------------------------------------------
 @mcp._mcp_server.list_tools()
 async def _list_tools() -> List[types.Tool]:
-    """Expose tools (widgets) to ChatGPT."""
     return [
         types.Tool(
-            name=w.identifier,
-            title=w.title,
-            description="Displays the latest news in a carousel format.",
+            name=TOOL_NAME,
+            title=TOOL_TITLE,
+            description=TOOL_DESCRIPTION,
             inputSchema=deepcopy(TOOL_INPUT_SCHEMA),
-            _meta=_tool_meta(w),
-            annotations={
-                "destructiveHint": False,
-                "openWorldHint": False,
-                "readOnlyHint": True,
-            },
+            _meta=_meta(),
         )
-        for w in widgets
     ]
-
 
 @mcp._mcp_server.list_resources()
 async def _list_resources() -> List[types.Resource]:
-    """Expose HTML templates as MCP resources."""
     return [
         types.Resource(
-            name=w.title,
-            title=w.title,
-            uri=w.template_uri,
-            description="News carousel widget HTML template",
+            name=TOOL_TITLE,
+            title=TOOL_TITLE,
+            uri=TEMPLATE_URI,
+            description="HTML template for rendering the news carousel",
             mimeType=MIME_TYPE,
-            _meta=_tool_meta(w),
+            _meta=_meta(),
         )
-        for w in widgets
     ]
 
-
-@mcp._mcp_server.list_resource_templates()
-async def _list_resource_templates() -> List[types.ResourceTemplate]:
-    """Expose widget templates."""
-    return [
-        types.ResourceTemplate(
-            name=w.title,
-            title=w.title,
-            uriTemplate=w.template_uri,
-            description="Template for rendering news carousel widget",
-            mimeType=MIME_TYPE,
-            _meta=_tool_meta(w),
-        )
-        for w in widgets
-    ]
-
-
-async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
-    widget = WIDGETS_BY_URI.get(str(req.params.uri))
-    if not widget:
-        return types.ServerResult(types.ReadResourceResult(contents=[]))
-    return types.ServerResult(
-        types.ReadResourceResult(
-            contents=[
-                types.TextResourceContents(
-                    uri=widget.template_uri,
-                    mimeType=MIME_TYPE,
-                    text=widget.html,
-                    title=widget.title,
-                    _meta=_tool_meta(widget),
-                )
-            ]
-        )
-    )
-
-
-async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
-    """Handle the main news retrieval and widget rendering."""
-    widget = WIDGETS_BY_ID.get(req.params.name)
-    if not widget:
+# --------------------------------------------------------------------
+# Main Tool Handler
+# --------------------------------------------------------------------
+async def _call_tool(req: types.CallToolRequest) -> types.ServerResult:
+    if req.params.name != TOOL_NAME:
         return types.ServerResult(
             types.CallToolResult(
                 content=[types.TextContent(type="text", text="Unknown tool")],
@@ -257,7 +191,6 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
             )
         )
 
-    # Parse category input
     try:
         payload = NewsInput.model_validate(req.params.arguments or {})
         category = payload.category
@@ -269,16 +202,14 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
             )
         )
 
-    # Aggregate news
-    all_articles = []
+    # Get news
     if category and category.lower() in MOCK_NEWS_DATA:
-        all_articles = MOCK_NEWS_DATA[category.lower()]
+        articles = MOCK_NEWS_DATA[category.lower()]
     else:
-        for v in MOCK_NEWS_DATA.values():
-            all_articles.extend(v)
-    all_articles.sort(key=lambda a: a["published_at"], reverse=True)
+        articles = [a for v in MOCK_NEWS_DATA.values() for a in v]
 
-    # Build structured carousel content
+    articles.sort(key=lambda a: a["published_at"], reverse=True)
+
     structured = {
         "title": "Latest News 🗞️",
         "items": [
@@ -289,30 +220,29 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
                 "image_url": a["image_url"],
                 "link": {"url": a["url"], "label": "Read full article →"},
             }
-            for a in all_articles
+            for a in articles
         ],
     }
 
-    widget_resource = _embedded_widget_resource(widget)
+    widget = _embedded_widget()
     meta = {
-        "openai.com/widget": widget_resource.model_dump(mode="json"),
-        **_tool_meta(widget),
+        "openai.com/widget": widget.model_dump(mode="json"),
+        **_meta(),
     }
 
     return types.ServerResult(
         types.CallToolResult(
-            content=[types.TextContent(type="text", text=widget.response_text)],
+            content=[types.TextContent(type="text", text="Rendered the latest news carousel.")],
             structuredContent=structured,
             _meta=meta,
         )
     )
 
-# Register handlers
-mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool_request
-mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
+# Register the handler
+mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool
 
 # --------------------------------------------------------------------
-# FastMCP Application
+# FastMCP App
 # --------------------------------------------------------------------
 app = mcp.streamable_http_app()
 
