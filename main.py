@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from copy import deepcopy
 from pathlib import Path
-
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, ConfigDict, ValidationError
 
 import mcp.types as types
@@ -255,7 +255,7 @@ mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool
 # --------------------------------------------------------------------
 # FastMCP App
 # --------------------------------------------------------------------
-app = mcp.streamable_http_app()
+app = mcp.streamable_http_app(base_path="/mcp")
 from fastapi import FastAPI
 if isinstance(app, FastAPI):
     @app.get("/")
@@ -272,6 +272,12 @@ try:
     )
 except Exception:
     pass
+
+@app.get("/.well-known/openid-configuration")
+@app.get("/.well-known/oauth-authorization-server")
+@app.get("/.well-known/oauth-protected-resource")
+async def redirect_well_known():
+    return RedirectResponse(url="/mcp/.well-known/openid-configuration")
 
 if __name__ == "__main__":
     import uvicorn, os
